@@ -1,63 +1,138 @@
 #include <stdio.h>
 #include "fic_wave.h"
 
-// need to extract the actual sound data, which begins at offset 44 in WAVE file
 FILE *abre_wave(const char *ficWave, float *fm)
 {
+    /*---INPUTS---:
+
+       (1) *ficWave -> (és un string o char[]) punter al nom del fitxer que hem de llegir
+        (2) *fm -> (float) punter a la variable de p1.c que guarda el sample rate (freqüència de mostratge)
+
+    ---OUTPUTS---:
+
+        (1) En cas d'exit -> punter al fitxer PAV_P1.wav (apuntant ja a la posició d'inici de les dades de so (offset 44))
+        (2) En cas d'error -> NULL
+
+    ---DESCRICPIÓ---
+
+    Extreure diversos valors de metadata del fitxer amb nom *ficWave (Format d'Audio (PCM, ...) # de canals (mono, stereo, ...) & sampling rate (fm))
+
+        Totes les accions comentades son comprovades per possibles errors, és a dir, existeix control d'errors
+
+        (1) Comenca obrint el fitxer, posicionant el cursor de lectura a la  posició 20.
+
+        (2) Llegeix el primers 4 bytes, per extreure el Audio Format i # de canals
+
+        (3) Comprova que aquests  paràmetres siguin del format esperat (pot canviar aquesta funcionalitat en el futur)
+
+        (4) Extreu el fm, posicionant el cursor a la posicio 24 (offset 24) i llegeix el pròxims 4 bytes, guardant-ho en la variable buffer
+
+        (5) Acaba posant el cursor del punter FILE al offset 44 (on comencen les dades del senyal), assigna a *fm el valor de buffer (per accedir
+        al valor desde p1.c) i retorna el punter *fpWave per també poder usar en p1.c*/
+
     FILE *fpWave;
 
+    // check if file opening was successful
     if ((fpWave = fopen(ficWave, "r")) == NULL)
+    {
         return NULL;
+    }
 
     //****Audio Format + Number of channels extraction Start****
-    if (fseek(fpWave, 20, SEEK_SET) < 0) // position 20, 4 bytes
+    if (fseek(fpWave, 20, SEEK_SET) < 0)
+    { // position 20, 4 bytes
         return NULL;
+    }
 
-    // variable to store number of channels (2 bytes)
+    // variable to store audio format (2 bytes) & number of channels (2 bytes)
     u_int32_t metadata;
 
     // fread 4 bytes of fpWave
-    fread(&metadata, 2, 2, fpWave);
+    if (fread(&metadata, 2, 2, fpWave) != 2)
+    {
+        fprintf(stderr, "Reading metadata failed\n");
+        return NULL;
+    }
 
     // break <metadata> into variable 1 (Audio Format) & variable 2 (Number of Channels)
-    u_int16_t audio_format = (u_int16_t)(metadata >> 16);                                                                       // <-- stick with upper 2 bytes
-    u_int16_t num_channels = (u_int16_t)(metadata & 0x00FF);                                                                    // stick with lower 2 bytes
-    printf("Audio Format: %u\nNumber of channels: %u\n", audio_format, num_channels);                                           //<-- checking purposes (can delete)
-    printf("Size of audio format variable: %lu\nSize of channels variable: %lu\n", sizeof(audio_format), sizeof(num_channels)); // <-- checking purposes (can delete)
+    u_int16_t audio_format = (u_int16_t)(metadata >> 16);    // <-- stick with upper 2 bytes
+    u_int16_t num_channels = (u_int16_t)(metadata & 0x00FF); // stick with lower 2 bytes
 
-    // error checking
+    // error checking (CANVIAR FUNCIONAMENT EN FUNCIO DEL QUE VULGUEM QUE PASSI)
     if (audio_format != (u_int16_t)(1) || num_channels != (u_int16_t)(1))
     {
         fprintf(stderr, "Either the audio format or the number of channels is incompatible with the program.\n");
         return NULL;
     }
-    // //****Audio Format + Number of Channels extraction ends****
+    //****Audio Format + Number of Channels extraction ends****
 
     //****Sample Rate Extraction Start****
+
+    // variable to store the sample rate (fm)
     unsigned int buffer;
 
+    // place cursor at offset 24
     if (fseek(fpWave, 24, SEEK_SET) < 0)
+    {
+        fprintf(stderr, "Seeking to line 24 has failed.\n");
         return NULL; // position reading cursos to fm chunk
+    }
 
-    fread(&buffer, 4, 1, fpWave);
-    // printf("%lu\n%d\n%08X", buffer, sizeof(buffer), buffer);
-    if (fseek(fpWave, 44, SEEK_SET) < 0)
-        // printf("fuck");
-        return NULL; // <--- aixo peta
+    // read sample rate (4 bytes)
+    if (fread(&buffer, 4, 1, fpWave) != 1)
+    {
+        fprintf(stderr, "Reading buffer failed.\n");
+        return NULL;
+    }
+
+    // place cursor at offset 44 (wave data)
+    if (fseek(fpWave, 44, SEEK_SET) < 0) // <--- aixo peta
+    {
+        fprintf(stderr, "Seeking to line 44 failed");
+        return NULL;
+    }
+
     // assign buffer to fm pointer
-    // printf("not ok");
     *fm = buffer;
     //****Sample Rate Extraction End****
+
     // printf("ok");
     return fpWave;
 }
 
 size_t lee_wave(void *x, size_t size, size_t nmemb, FILE *fpWave)
 {
+    /*---INPUTS---
+
+        (1) *x -> punter a on guardar els bytes llegits
+        (2) size -> tamany en bytes de cada un dels elements que volem llegir
+        (3) nmemb -> quantitat d'elements a extreure
+        (4) *fpWave -> punter fitxer del qual llegir
+
+    ---OUTPUTS---
+
+        (1) Nombre d'elements extrets correctament (hauria de ser igual a size (input) * nmemb (input))
+
+    ---DESCRICIO---
+
+        Fa només una simple crida a la funció pre-implementada fread() que bàsicament llegeix <nmemb> elements de tamany <size> (bytes) cadascun
+        del fitxer fpWave i ho guarda en la variable <x>
+    */
     return fread(x, size, nmemb, fpWave);
 }
 
 void cierra_wave(FILE *fpWave)
 {
+    /*---INPUTS---
+
+        (1) *fpWave -> punter FILE del fitxer del qual volem tancar el seu stream
+
+    ---OUTPUTS---
+
+        (1) void
+
+    --DESCRIPCIO---
+        Simple crida al mètode pre-implementat en C, fclose(), que tanca el stream del fitxer que es passsa com argument
+    */
     fclose(fpWave);
 }

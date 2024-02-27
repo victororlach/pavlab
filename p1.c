@@ -8,27 +8,42 @@
 
 int main(int argc, char *argv[])
 {
-    float durTrm = 0.010;
-    float fm;
-    int N;
-    int trm;
-    float *x;
-    short *buffer;
-    FILE *fpWave;
+    // inicialitzacio variables
+    float durTrm = 0.010; // valor arbitrari donat ja d'entrada
+    float fm;             // sample rate (s'ha de llegir del .wav)
+    int N;                // tamany dels blocs sobre els que operarem
+    int trm;              // nombre del bloc
+    float *x;             // array del bloc a analitzar
+    short *buffer;        // array on es depositen els valors llegits del .wav
+    FILE *fpWave;         // punter al fitxer .wav donat d'entrada al CLI
+    FILE *output_file;    // només inicialitzat quan s'executa el programa amb 2 arguments, el nom del fitxer de sortida on aniran guardades
+    // totes les mètriques
 
+    // comprovem que ens han donat el nom dels fitxers necessaris
     if (argc != 2 && argc != 3)
     {
         fprintf(stderr, "Empleo: %s inputfile [outputfile]\n", argv[0]);
         return -1;
     }
 
+    // check whether output file has been given as input (and create it if yes)
+    if (argv[2] && (fopen("data_metrics.txt", "w") != NULL))
+    {
+        // file already exists, remove & create new one
+        remove("data_metrics.txt");                   // should return 0 if operation is succesful
+        output_file = fopen("data_metrics.txt", "w"); // create the same file but this time empty
+    }
+
+    // extreure el valor de fm del .wav
     if ((fpWave = abre_wave(argv[1], &fm)) == NULL)
     {
         fprintf(stderr, "Error al abrir el fichero WAVE de entrada %s (%s)\n", argv[1], strerror(errno));
         return -1;
     }
 
-    // N = durTrm * fm; <-- N for non extra task
+    N = durTrm * fm; //<-- assignacio de valor a N
+
+    // assignacio de lloc en memoria de <buffer> i <x>
     if ((buffer = malloc(N * sizeof(*buffer))) == 0 ||
         (x = malloc(N * sizeof(*x))) == 0)
     {
@@ -37,80 +52,40 @@ int main(int argc, char *argv[])
     }
 
     // beginning of actual code
-    trm = 0;
-    // while (lee_wave(buffer, sizeof(*buffer), N, fpWave) == N)
-    // {
-    //     for (int n = 0; n < N; n++)
-    //         x[n] = buffer[n] / (float)(1 << 15);
-
-    //     printf("%d\t%f\t%f\t%f\n", trm, compute_power(x, N),
-    //            compute_am(x, N),
-    //            compute_zcr(x, N, fm));
-    //     trm += 1;
-    // }
-
-    //***EJERCICIO AMPLIACION CODIGO***
-
-    float T_Long = 0.02;                 // duration of hamming window
-    N = T_Long * fm;                     // duration in samples of hamming window
-    unsigned int M_displacement = N / 2; // displacement in samples of hamming window
-    float *hamming_window;
-    printf("line 57");
-    // hamming_window generation
-    for (unsigned int n = 0; n < N; ++n)
+    trm = 0;                                                  // el primer bloc
+    while (lee_wave(buffer, sizeof(*buffer), N, fpWave) == N) // mentre sempre anem extreient N valors del .wav, podem anar fent blocs sencers
     {
-        hamming_window[n] = 0.54 - 0.46 * cos(6.28 * n / (N - 1)); // 6.28 = 2*pi (aprox)
-    }
+        // traspas dels valor de <buffer> a <x>
+        for (int n = 0; n < N; n++)
+            x[n] = buffer[n] / (float)(1 << 15);
 
-    while (lee_wave(buffer, sizeof(*buffer), N, fpWave) == N)
-    {
-        // if its first iteration, extract new N block, otherwise work with what we got
-        if (trm == 0)
+        // check whether program has been confingured for CLI writing or .txt writing
+        if (argv[2])
         {
-            for (int n = 0; n < N; n++)
-                x[n] = buffer[n] / (float)(1 << 15);
-
-            printf("%d\t%f\t%f\t%f\n", trm, compute_hamming_power(x, hamming_window, N),
+            // we want to write to output_file, which has already been created
+            fprintf(output_file, "%d\t%f\t%f\t%d\n", trm, compute_power(x, N),
+                    compute_am(x, N),
+                    (int)compute_zcr(x, N, fm));
+        }
+        else // otherwise just CLI print
+        {
+            printf("%d\t%f\t%f\t%f\n", trm, compute_power(x, N),
                    compute_am(x, N),
                    compute_zcr(x, N, fm));
-            trm += 1;
         }
-        else
-        {
-            int iteration = 0;
-
-            // rerun 2 times
-            while (iteration < 2)
-            {
-
-                // flip the x array
-                float aux[N / 2];
-
-                for (int i = 0; i < N / 2; i++)
-                {
-                    aux[i] = x[N / 2 + i];
-                }
-
-                // update x by shifting last N/2 elements down to first N/2 elements
-                memcpy(x, &aux, sizeof(aux) / sizeof(float)); // sizeof(aux) / sizeof(float) = size of array
-
-                for (int n = 0; n < N / 2; n++)
-                    x[n + N / 2] = buffer[n * (iteration * N / 2)] / (float)(1 << 15);
-
-                printf("%d\t%f\t%f\t%f\n", trm, compute_hamming_power(x, hamming_window, N),
-                       compute_am(x, N),
-                       compute_zcr(x, N, fm));
-                trm += 1;
-                iteration++;
-            }
-        }
+        trm += 1; // seguent bloc
     }
 
-    //***FIN EJERCICIO AMPLIACIÓN CÓDIGO***
-
+    // material clean-up
     cierra_wave(fpWave);
     free(buffer);
     free(x);
+
+    // close the .txt if has been created
+    if (output_file != NULL)
+    {
+        fclose(output_file);
+    }
 
     return 0;
 }

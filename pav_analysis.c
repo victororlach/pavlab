@@ -3,6 +3,22 @@
 
 float compute_power(const float *x, unsigned int N)
 {
+    /*---INPUTS---
+
+        (1) *x -> float array del qual extreiem els float values per poder calcular la potencia
+
+        (2) N -> integer positiu que ens diu el nombre de valors que extreure i multiplicar del float array x
+
+    ---OUTPUTS---
+
+        (1) el valor de potència mitjana en dBs (com un float)
+
+    ---DESCRIPCIO---
+
+        (1) Multiplica tots els elements (almenys el N primers) del float array x amb sí mateixos (operació d'elevar al quadrat), fa el sumatori
+        i ho passa a dBs. Normalment els valors que treu aquesta funció, almenys amb el PAV_P1.wav d'aquesta pràctica, haurien de rondar
+        entre els -40 dB -- -90 dB (sobretot ser negatius)
+    */
     // Calculate the squared sum of the first N values in the array
     float squared_sum = 0.0;
     for (unsigned int i = 0; i < N; ++i)
@@ -21,6 +37,22 @@ float compute_power(const float *x, unsigned int N)
 
 float compute_hamming_power(const float *x, const float *hamming, unsigned int N)
 {
+    /*---INPUTS---
+
+        (1) *x -> float array del senyal principal
+
+        (2) *hamming -> float array dels coeficients de la finestra de Hamming
+
+        (3) N -> Integer positiu que representa el nombre de multiplicacions a fer
+
+    ---OUTPUTS---
+
+        (1) valor de potència mitjana resultant en dBs
+
+    ---DESCRIPCIO---
+
+        Implementació de la funció expressa en el document d'exercisi 2 d'ampliació de la pràctica
+    */
     // Initialize the numerator and denominator sums
     float numerator_sum = 0.0;
     float denominator_sum = 0.0;
@@ -41,6 +73,20 @@ float compute_hamming_power(const float *x, const float *hamming, unsigned int N
 
 float compute_am(const float *x, unsigned int N)
 {
+    /*---INPUTS---
+
+        (1) *x -> float array que conté els valors del senyal sobre el que operar
+
+        (2) N -> Integer positiu que representa el nombre de multiplicacions a fer
+
+    ---OUTPUTS---
+
+        (1) resultat de la operacio (valor mitja del valor absolut del senyal x)
+
+    ---DESCRIPCIO---
+
+        Implementacio de la segona funcio (calcul del valor mitja del valor absolut del senyal) de les funcions del document de pràctiques
+    */
     // Calculate the sum of absolute values of the first N elements in the array
     float absolute_sum = 0.0;
     for (unsigned int i = 0; i < N; ++i)
@@ -56,6 +102,22 @@ float compute_am(const float *x, unsigned int N)
 
 float compute_zcr(const float *x, unsigned int N, float fm)
 {
+    /*--INPUTS---
+
+        1) *x -> float array que conté els valors del senyal sobre el que operar
+
+        (2) N -> Integer positiu que representa el nombre de multiplicacions a fer
+
+        (3) fm -> valor float utilitzat en la operacio (sample rate)
+
+    --OUTPUTS---
+
+        (1) resultat de la operacio (nombre de 0 crossings trobats en x)
+
+    ---DESCRIPTION---
+
+        Impleemntacio de la tercera funcio del document de practiques
+    */
     // Initialize the sum of sign changes
     int sign_change_sum = 0;
 
