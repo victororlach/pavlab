@@ -1,4 +1,6 @@
 #include <math.h>
+#include <stdarg.h>
+#include <stdio.h> //REMOVE ONCE TESTING IS DONE!!!
 #include "pav_analysis.h"
 
 float compute_power(const float *x, unsigned int N)
@@ -35,7 +37,7 @@ float compute_power(const float *x, unsigned int N)
     return result_dB;
 }
 
-float compute_hamming_power(const float *x, const float *hamming, unsigned int N)
+float compute_hamming_power(const float *hamming, unsigned int N, const int num, ...)
 {
     /*---INPUTS---
 
@@ -53,22 +55,81 @@ float compute_hamming_power(const float *x, const float *hamming, unsigned int N
 
         Implementació de la funció expressa en el document d'exercisi 2 d'ampliació de la pràctica
     */
-    // Initialize the numerator and denominator sums
-    float numerator_sum = 0.0;
-    float denominator_sum = 0.0;
-
-    // Perform the summation over the first N elements of the arrays
-    for (unsigned int n = 0; n < N; ++n)
+    if (num > 1) // <-- in case variable arguments are forwarded
     {
-        float term = x[n] * hamming[n];
-        numerator_sum += term * term;
-        denominator_sum += hamming[n] * hamming[n];
+        va_list args;      // Declare a va_list variable
+        va_start(args, 4); // Initialize the va_list | 4 because the args are: left_samples*, right_samples*, left_samples_power, right_samples_power
+
+        // Loop through the arguments using va_arg
+        for (int i = 0; i < num / 2 /*usually will just be 2, can be hardcoded*/; ++i)
+        {
+            float *samples = va_arg(args, float *); // Extract the next float array from arguments
+            // compute the power of this samples array
+            //  Initialize the numerator and denominator sums
+            float numerator_sum = 0.0;
+            float denominator_sum = 0.0;
+
+            // Perform the summation over the first N elements of the arrays
+            for (unsigned int n = 0; n < N; ++n)
+            {
+                float term = samples[n] * hamming[n];
+                numerator_sum += term * term;
+                denominator_sum += hamming[n] * hamming[n];
+            }
+
+            // Calculate the final result using 10 * log10()
+            float result = 10.0 * log10(numerator_sum / denominator_sum);
+
+            // input result into the float pointer passed to this function at 3rd or 4th index
+            float *power_pointer = extractAtIndex(args, (i == 0) ? 2 : 3);
+
+            // power pointer assignment
+            *power_pointer = result;
+        }
+
+        va_end(args); // Cleanup: This is necessary to free resources associated with va_list
+
+        // return NULL in the case of multiple channels (results have already been returned using pointers)
+        return -1; // <-- implement NULL checkers in main code (p1.c)
+    }
+    else // in case no variable arguments are forwarded
+    {
+        va_list args;        // Declare a va_list variable
+        va_start(args, num); // Initialize the va_list
+
+        // Initialize the numerator and denominator sums
+        float numerator_sum = 0.0;
+        float denominator_sum = 0.0;
+
+        float *samples = va_arg(args, float *); // Extract the next float array from arguments
+
+        // Perform the summation over the first N elements of the arrays
+        for (unsigned int n = 0; n < N; ++n)
+        {
+            float term = samples[n] * hamming[n];
+            numerator_sum += term * term;
+            denominator_sum += hamming[n] * hamming[n];
+        }
+
+        // Calculate the final result using 10 * log10()
+        float result = 10.0 * log10(numerator_sum / denominator_sum);
+
+        return result;
+    }
+}
+
+// auxiliary function to help with variable argument extraction
+float *extractAtIndex(va_list args, int index) // returns pointer
+{
+    float *value;
+
+    // Consume arguments until reaching the desired index
+    for (int i = 0; i <= index; ++i)
+    {
+        float *value = va_arg(args, float *); // Assume the type is double for the example
     }
 
-    // Calculate the final result using 10 * log10()
-    float result = 10.0 * log10(numerator_sum / denominator_sum);
-
-    return result;
+    return value; // CHECK AGAIN
 }
 
 float compute_am(const float *x, unsigned int N)
@@ -134,5 +195,5 @@ float compute_zcr(const float *x, unsigned int N, float fm)
     // Calculate the final result
     float result = (float)sign_change_sum * fm / (2 * (N - 1));
 
-    return result;
+    return result; // <-- ha d'estar entre 0 i 8000 aprox, que sempre es compleix
 }

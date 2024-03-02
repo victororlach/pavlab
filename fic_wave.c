@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include "fic_wave.h"
 
 FILE *abre_wave(const char *ficWave, float *fm)
@@ -55,15 +56,16 @@ FILE *abre_wave(const char *ficWave, float *fm)
     }
 
     // break <metadata> into variable 1 (Audio Format) & variable 2 (Number of Channels)
-    u_int16_t audio_format = (u_int16_t)(metadata >> 16);    // <-- stick with upper 2 bytes
-    u_int16_t num_channels = (u_int16_t)(metadata & 0x00FF); // stick with lower 2 bytes
+    u_int16_t audio_format = (u_int16_t)(metadata >> 16);  // <-- stick with upper 2 bytes
+    u_int16_t num_channels = (u_int16_t)(metadata & 0xFF); // stick with lower 2 bytes
 
     // error checking (CANVIAR FUNCIONAMENT EN FUNCIO DEL QUE VULGUEM QUE PASSI)
-    if (audio_format != (u_int16_t)(1) || num_channels != (u_int16_t)(1))
+    if (audio_format != (u_int16_t)(1) || num_channels != (u_int16_t)(1) /*|| num_channels != (u_int16_t)(2)*/)
     {
         fprintf(stderr, "Either the audio format or the number of channels is incompatible with the program.\n");
         return NULL;
     }
+
     //****Audio Format + Number of Channels extraction ends****
 
     //****Sample Rate Extraction Start****
@@ -75,7 +77,7 @@ FILE *abre_wave(const char *ficWave, float *fm)
     if (fseek(fpWave, 24, SEEK_SET) < 0)
     {
         fprintf(stderr, "Seeking to line 24 has failed.\n");
-        return NULL; // position reading cursos to fm chunk
+        return NULL;
     }
 
     // read sample rate (4 bytes)
@@ -84,6 +86,19 @@ FILE *abre_wave(const char *ficWave, float *fm)
         fprintf(stderr, "Reading buffer failed.\n");
         return NULL;
     }
+    //****Sample Rate Extraction End****
+
+    //****16 bits per samples checking**** (offset 34 / 2 bytes) START****
+
+    // Read the first 2 bytes
+    unsigned short bits_per_sample;
+    // cursor positioning and byte extraction
+    if (fseek(fpWave, 34, SEEK_SET) < 0 && fread(&bits_per_sample, 2, 1, fpWave) != 1 && bits_per_sample != 16)
+    {
+        fprintf(stderr, "Seeking to line 34, reading operation has failed or bits/sample != 16.\n");
+        return NULL;
+    }
+    //****16 bits per samples checking**** (offset 34 / 2 bytes) END****
 
     // place cursor at offset 44 (wave data)
     if (fseek(fpWave, 44, SEEK_SET) < 0) // <--- aixo peta
@@ -94,9 +109,7 @@ FILE *abre_wave(const char *ficWave, float *fm)
 
     // assign buffer to fm pointer
     *fm = buffer;
-    //****Sample Rate Extraction End****
 
-    // printf("ok");
     return fpWave;
 }
 

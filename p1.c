@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <math.h>
+#include <stdbool.h>
 #include "pav_analysis.h"
 #include "fic_wave.h"
 
@@ -13,6 +14,7 @@ int main(int argc, char *argv[])
     float fm;             // sample rate (s'ha de llegir del .wav)
     int N;                // tamany dels blocs sobre els que operarem
     int trm;              // nombre del bloc
+    bool *stereo;         // whether .wav is mono or stereo (true for stereo)
     float *x;             // array del bloc a analitzar
     short *buffer;        // array on es depositen els valors llegits del .wav
     FILE *fpWave;         // punter al fitxer .wav donat d'entrada al CLI
@@ -42,6 +44,7 @@ int main(int argc, char *argv[])
     }
 
     N = durTrm * fm; //<-- assignacio de valor a N
+    printf("valor de N: %d", N);
 
     // assignacio de lloc en memoria de <buffer> i <x>
     if ((buffer = malloc(N * sizeof(*buffer))) == 0 ||
@@ -82,10 +85,10 @@ int main(int argc, char *argv[])
     free(x);
 
     // close the .txt if has been created
-    if (output_file != NULL)
-    {
-        fclose(output_file);
-    }
+    // if (output_file != NULL)
+    // {
+    //     fclose(output_file);
+    // }
 
     return 0;
 }
