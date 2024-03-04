@@ -1,6 +1,7 @@
-data_metrics.txt
-
+.vscode
 #executables
 *.exe
- 
+
+*.o
+
 .DS_Store
