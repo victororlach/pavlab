@@ -12,15 +12,15 @@ void mono_compute(FILE *output_file, float *x, float *hamming_window, int N, int
 
 int main(int argc, char *argv[])
 {
-    float T_Long = 0.02;  // duration of hamming window (donat per l'enunciat)
-    float durTrm = 0.010; // valor arbitrari donat ja d'entrada
-    float fm;             // sample rate (s'ha de llegir del .wav)
-    int trm = 0;          // initial block number
-    float *x;             // array del bloc a analitzar
-    short *buffer;        // array on es depositen els valors llegits del .wav
-    FILE *fpWave;         // punter al fitxer .wav donat d'entrada al CLI
-    FILE *output_file;    // només s'inicialitza si l'usuari crida l'executable amb 2 arguments
-    bool stereo;          // are we reading in mono or stereo mode
+    float T_Long = 0.02;      // duration of hamming window (donat per l'enunciat)
+    float durTrm = 0.010;     // valor arbitrari donat ja d'entrada
+    float fm;                 // sample rate (s'ha de llegir del .wav)
+    int trm = 0;              // initial block number
+    float *x;                 // array del bloc a analitzar
+    short *buffer;            // array on es depositen els valors llegits del .wav
+    FILE *fpWave;             // punter al fitxer .wav donat d'entrada al CLI
+    FILE *output_file = NULL; // només s'inicialitza si l'usuari crida l'executable amb 2 arguments
+    bool stereo;              // are we reading in mono or stereo mode
 
     if (argc != 2 && argc != 3)
     {
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
         output_file = fopen("data_ampliacion.txt", "w"); // create the same file but this time empty
     }
 
-    if ((fpWave = abre_wave(argv[1], &fm)) == NULL)
+    if ((fpWave = abre_wave(argv[1], &fm, &stereo)) == NULL)
     {
         fprintf(stderr, "Error al abrir el fichero WAVE de entrada %s (%s)\n", argv[1], strerror(errno));
         return -1;
@@ -84,9 +84,6 @@ int main(int argc, char *argv[])
     // Create arrays to store the even samples (left_samples) and the odd samples (right_samples)
     float *left_samples = malloc(N / 2 * sizeof(float));
     float *right_samples = malloc(N / 2 * sizeof(float));
-    stereo = true;
-    output_file = NULL;
-    printf("%d", trm);
     while (lee_wave(buffer, sizeof(*buffer), N, fpWave) == N)
     {
         // if its first iteration, extract new N block, otherwise work with what we got
@@ -100,7 +97,6 @@ int main(int argc, char *argv[])
 
             if (stereo)
             {
-                printf("%d", trm);
                 stereo_compute(output_file, x, hamming_window, left_samples, right_samples, N, &trm); // used when working with stereo
             }
             else
@@ -109,43 +105,42 @@ int main(int argc, char *argv[])
             }
             trm++;
         }
-        break;
-        // else
-        // {
-        //     int iteration = 0;
+        else
+        {
+            int iteration = 0;
 
-        //     // rerun 2 times
-        //     while (iteration < 2)
-        //     {
-        //         // flip the x array
-        //         float aux[M_displacement];
+            // rerun 2 times
+            while (iteration < 2)
+            {
+                // flip the x array
+                float aux[M_displacement];
 
-        //         for (int i = 0; i < M_displacement; i++)
-        //         {
-        //             aux[i] = x[M_displacement + i];
-        //         }
+                for (int i = 0; i < M_displacement; i++)
+                {
+                    aux[i] = x[M_displacement + i];
+                }
 
-        //         // update x by shifting last N/2 elements down to first N/2 elements
-        //         memcpy(x, aux, sizeof(aux) / sizeof(float)); // sizeof(aux) / sizeof(float) = size of array
+                // update x by shifting last N/2 elements down to first N/2 elements
+                memcpy(x, aux, sizeof(aux) / sizeof(float)); // sizeof(aux) / sizeof(float) = size of array
 
-        //         for (int n = 0; n < M_displacement; n++)
-        //             x[n + M_displacement] = buffer[n + (iteration * M_displacement)] / (float)(1 << 15);
+                for (int n = 0; n < M_displacement; n++)
+                    x[n + M_displacement] = buffer[n + (iteration * M_displacement)] / (float)(1 << 15);
 
-        //         if (stereo)
-        //         {
-        //             // do stereo stuff
-        //             stereo_compute(output_file, x, hamming_window, left_samples, right_samples, N, &trm);
-        //             // printf(stereo ? "yes" : "no");
-        //         }
-        //         else
-        //         {
-        //             // do mono stuff
-        //             mono_compute(output_file, x, hamming_window, N, &trm);
-        //         }
-        //         trm++;
-        //         iteration++;
-        //     }
-        // }
+                if (stereo)
+                {
+                    // do stereo stuff
+                    stereo_compute(output_file, x, hamming_window, left_samples, right_samples, N, &trm);
+                    // printf(stereo ? "yes" : "no");
+                }
+                else
+                {
+                    // do mono stuff
+                    mono_compute(output_file, x, hamming_window, N, &trm);
+                }
+                trm++;
+                iteration++;
+            }
+        }
     }
 
     cierra_wave(fpWave);
@@ -176,17 +171,16 @@ void stereo_compute(FILE *output_file, float *x, float *hamming_window, float *l
         float left_channel_power;
         float right_channel_power;
 
-        compute_hamming_power(hamming_window, N, 2, left_samples, right_samples, &left_channel_power, &right_channel_power);
+        compute_hamming_power(hamming_window, N, 4, left_samples, right_samples, &left_channel_power, &right_channel_power);
         fprintf(output_file, "%d\t%f\t%f\n", *trm, left_channel_power, right_channel_power);
     }
     else // CLI priting
     {
-        // printf("%d", *trm);
         //  create 2 floats to store each channel's power
         float left_channel_power;
         float right_channel_power;
-        compute_hamming_power(hamming_window, N, 2, left_samples, right_samples, &left_channel_power, &right_channel_power);
-        // printf("%d\t%f\t%f\n", *trm, left_channel_power, right_channel_power);
+        compute_hamming_power(hamming_window, N, 4, left_samples, right_samples, &left_channel_power, &right_channel_power);
+        printf("%d\t%f\t%f\n", *trm, left_channel_power, right_channel_power);
     }
 }
 
