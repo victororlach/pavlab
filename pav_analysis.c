@@ -1,6 +1,5 @@
 #include <math.h>
 #include <stdarg.h>
-#include <stdio.h> //REMOVE ONCE TESTING IS DONE!!!
 #include "pav_analysis.h"
 
 float compute_power(const float *x, unsigned int N)
@@ -41,15 +40,23 @@ float compute_hamming_power(const float *hamming, unsigned int N, const int num,
 {
     /*---INPUTS---
 
-        (1) *x -> float array del senyal principal
+        (1) *hamming -> float array dels coeficients de la finestra de Hamming
 
-        (2) *hamming -> float array dels coeficients de la finestra de Hamming
+        (2) N -> Integer positiu que representa el nombre de multiplicacions a fer
 
-        (3) N -> Integer positiu que representa el nombre de multiplicacions a fer
+        (3) num -> nombre que ens indica la quantitat de arguments que s'han entrat
+
+        (4) ... -> els arguments variables: pot agafar 2 formes diferents:
+
+            (1) quan actuem en mono, representa només el vector x* de floats (les samples de les quals hem de calcular la potència)
+
+            (2) quan actuem en stereo, representa el seguent conjunt d'arguments: [*left_samples, *right_samples, *left_channel_power, *right_channel_power]
 
     ---OUTPUTS---
 
-        (1) valor de potència mitjana resultant en dBs
+        ***Quan estem en mode mono, retorna la potència de l'unic canal
+
+        ***Quan estem en stereo, retorna la potència dels 2 canals però a través de punters (return -1 però no se li fa cas)
 
     ---DESCRIPCIO---
 
@@ -57,8 +64,9 @@ float compute_hamming_power(const float *hamming, unsigned int N, const int num,
     */
     if (num > 1) // <-- in case variable arguments are forwarded
     {
-        va_list args;      // Declare a va_list variable
-        va_start(args, 4); // Initialize the va_list | 4 because the args are: left_samples*, right_samples*, left_samples_power, right_samples_power
+        va_list args;        // Declare a va_list variable
+        va_start(args, num); // Initialize the va_list | 4 because the args are: left_samples*, right_samples*, left_samples_power, right_samples_power
+        float results[2];    // array to store float results
 
         // Loop through the arguments using va_arg
         for (int i = 0; i < num / 2 /*usually will just be 2, can be hardcoded*/; ++i)
@@ -70,7 +78,7 @@ float compute_hamming_power(const float *hamming, unsigned int N, const int num,
             float denominator_sum = 0.0;
 
             // Perform the summation over the first N elements of the arrays
-            for (unsigned int n = 0; n < N; ++n)
+            for (unsigned int n = 0; n < N / 2; ++n)
             {
                 float term = samples[n] * hamming[n];
                 numerator_sum += term * term;
@@ -79,12 +87,14 @@ float compute_hamming_power(const float *hamming, unsigned int N, const int num,
 
             // Calculate the final result using 10 * log10()
             float result = 10.0 * log10(numerator_sum / denominator_sum);
-
-            // input result into the float pointer passed to this function at 3rd or 4th index
-            float *power_pointer = extractAtIndex(args, (i == 0) ? 2 : 3);
-
-            // power pointer assignment
-            *power_pointer = result;
+            results[i] = result;
+        }
+        // input result into the float pointer passed to this function at 3rd or 4th index
+        // float *power_pointer = extractAtIndex(args, (i == 0) ? 2 : 3);
+        for (int i = 0; i < 2; i++)
+        {
+            float *samples = va_arg(args, float *);
+            *samples = results[i];
         }
 
         va_end(args); // Cleanup: This is necessary to free resources associated with va_list
@@ -92,7 +102,7 @@ float compute_hamming_power(const float *hamming, unsigned int N, const int num,
         // return NULL in the case of multiple channels (results have already been returned using pointers)
         return -1; // <-- implement NULL checkers in main code (p1.c)
     }
-    else // in case no variable arguments are forwarded
+    else // in case only 1 variable argument is forwarded
     {
         va_list args;        // Declare a va_list variable
         va_start(args, num); // Initialize the va_list
@@ -116,20 +126,6 @@ float compute_hamming_power(const float *hamming, unsigned int N, const int num,
 
         return result;
     }
-}
-
-// auxiliary function to help with variable argument extraction
-float *extractAtIndex(va_list args, int index) // returns pointer
-{
-    float *value;
-
-    // Consume arguments until reaching the desired index
-    for (int i = 0; i <= index; ++i)
-    {
-        float *value = va_arg(args, float *); // Assume the type is double for the example
-    }
-
-    return value; // CHECK AGAIN
 }
 
 float compute_am(const float *x, unsigned int N)

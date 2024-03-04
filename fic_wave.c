@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include "fic_wave.h"
 
-FILE *abre_wave(const char *ficWave, float *fm)
+FILE *abre_wave(const char *ficWave, float *fm, bool *stereo)
 {
     /*---INPUTS---:
 
@@ -49,7 +49,7 @@ FILE *abre_wave(const char *ficWave, float *fm)
     u_int32_t metadata;
 
     // fread 4 bytes of fpWave
-    if (fread(&metadata, 2, 2, fpWave) != 2)
+    if (fread(&metadata, 4, 1, fpWave) != 1)
     {
         fprintf(stderr, "Reading metadata failed\n");
         return NULL;
@@ -60,12 +60,21 @@ FILE *abre_wave(const char *ficWave, float *fm)
     u_int16_t num_channels = (u_int16_t)(metadata & 0xFF); // stick with lower 2 bytes
 
     // error checking (CANVIAR FUNCIONAMENT EN FUNCIO DEL QUE VULGUEM QUE PASSI)
-    if (audio_format != (u_int16_t)(1) || num_channels != (u_int16_t)(1) /*|| num_channels != (u_int16_t)(2)*/)
+    if (audio_format != (u_int16_t)(1) || (num_channels != (u_int16_t)(1) && num_channels != (u_int16_t)(2)))
     {
         fprintf(stderr, "Either the audio format or the number of channels is incompatible with the program.\n");
         return NULL;
     }
 
+    // check whether to update *stereo
+    if (num_channels == 1)
+    {
+        *stereo = false;
+    }
+    else
+    {
+        *stereo = true;
+    }
     //****Audio Format + Number of Channels extraction ends****
 
     //****Sample Rate Extraction Start****

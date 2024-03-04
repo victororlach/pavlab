@@ -6,5 +6,4 @@ float compute_am(const float *x, unsigned int N);
 float compute_zcr(const float *x, unsigned int N, float fm);
 // float compute_hamming_power(const float *x, const float *hamming, unsigned int N);
 float compute_hamming_power(const float *hamming, unsigned int N, const int num, ...); // <-- "..." stand for "multiple arguments"
-float *extractAtIndex(const va_list args, const int index);
 #endif /* PAV_ANALYSIS_H	*/
