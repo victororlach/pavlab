@@ -1,0 +1,21 @@
+CC = gcc
+CFLAGS = -Wall -Wextra -std=c99
+LDFLAGS = -lm
+
+SRCS = p1_ampliacion_new.c pav_analysis.c fic_wave.c
+OBJS = $(SRCS:.c=.o)
+
+TARGET = p1_ampliacion_new
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+    $(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+%.o: %.c
+    $(CC) $(CFLAGS) -c -o $@ $<
+
+clean:
+    rm -f $(TARGET) $(OBJS)
+
+.PHONY: all clean
