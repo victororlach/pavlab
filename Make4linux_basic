@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -std=c99
 LDFLAGS = -lm
 
-SRCS = p1.c pav_analysis.c fic_wave.c
+SRCS = p1.c pav_analysis.c fic_wave_basic.c
 OBJS = $(SRCS:.c=.o)
 
 TARGET = p1
